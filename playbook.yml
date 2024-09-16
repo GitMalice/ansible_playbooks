@@ -1,0 +1,22 @@
+- name: basic setup
+  hosts: section
+  become: yes
+  tasks:
+    - name: update
+      apt:
+        upgrade: dist
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+    - name: timezone setting
+      community.general.timezone:
+          name: Europe/Paris
+    - name: check timezone
+      command: timedatectl
+      register: result
+    - name: show timezone
+      debug:
+        var: result.stdout
+    - name: create random user
+      user:
+        name: random
+        state: present
