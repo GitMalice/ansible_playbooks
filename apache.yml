@@ -1,5 +1,5 @@
 ---
-- name: deploy apache
+- name: deploy app on apache
   hosts: section
   become: yes
   tasks:
@@ -8,12 +8,14 @@
         name: apache2
         update_cache: yes
         state: latest
+
     - name: enable mod_rewrite
       apache2_module:
         name: rewrite
         state: present
       notify:
         - restart apache2
+
     - name: apache2 virtualhost on port 8090
       lineinfile:
         dest: /etc/apache2/sites-available/000-default.conf
@@ -21,8 +23,18 @@
         line: "<VirtualHost *:8090>"
       notify:
         - restart apache2
-  handlers:
-    - name: restart apache2
-      service:
-        name: apache2
-        state: restarted
+    - name: copy app into web directory
+      copy:
+        src: ~/Documents/Ansible/hello/
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      notify:
+        -restart apache2
+
+handlers:
+  - name: restart apache2
+    service:
+      name: apache2
+      state: restarted
