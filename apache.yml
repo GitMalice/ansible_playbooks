@@ -18,7 +18,7 @@
 
     - name: apache2 virtualhost on port 8090
       lineinfile:
-        dest: /etc/apache2/sites-available/000-default.conf
+        path: /etc/apache2/sites-available/000-default.conf
         regexp: "^<VirtualHost \\*:80>"
         line: "<VirtualHost *:8090>"
       notify:
@@ -31,10 +31,10 @@
         group: www-data
         mode: '0755'
       notify:
-        -restart apache2
+        - restart apache2
 
-handlers:
-  - name: restart apache2
-    service:
-      name: apache2
-      state: restarted
+  handlers:
+    - name: restart apache2
+      service:
+        name: apache2
+        state: restarted
