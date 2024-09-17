@@ -1,0 +1,77 @@
+---
+- name: deploy app on apache
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Afficher les variables utilisées
+      debug:
+        msg: |
+          Port HTTP: {{ http_port }}
+          Dossier racine: {{ document_root }}
+          Domaine: {{ domain }}
+          
+    - name: install apache2
+      apt:
+        name: apache2
+        update_cache: yes
+        state: latest
+
+    - name: enable mod_rewrite
+      apache2_module:
+        name: rewrite
+        state: present
+      notify:
+        - restart apache2
+
+    - name: ensure Apache listens on defined port
+      lineinfile:
+        path: /etc/apache2/ports.conf
+        line: "Listen {{ http_port }}"
+        create: yes
+        state: present
+      notify:
+        - restart apache2
+
+    - name: configure apache2 virtualhost on defined port
+      template:
+        src: templates/apache_000-default.conf.j2
+        dest: /etc/apache2/sites-available/000-default.conf
+      notify:
+        - restart apache2
+
+    - name: Activer le site Apache
+      command: a2ensite 000-default.conf
+      notify:
+        - restart apache2
+
+    - name: Vérification de la configuration Apache
+      command: apache2ctl configtest
+      register: apache_config_test
+      changed_when: "'Syntax OK' not in apache_config_test.stdout"
+
+    - name: Échec si la configuration Apache est incorrecte
+      fail:
+        msg: "Erreur dans la configuration Apache"
+      when: "'Syntax OK' not in apache_config_test.stdout"
+
+    - name: copy app into web directory
+      copy:
+        src: ~/Documents/Ansible/hello/
+        dest: "{{ document_root }}"
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: check the app availability on defined port
+      uri:
+        url: "http://{{ domain }}:{{ http_port }}"
+        status_code: 200
+      register: webpage
+
+    - name: Fail if the app is not responding
+      fail:
+        msg: "-- Bad news: the application is not responding on port {{ http_port }} ---"
+      when: webpage.status != 200
+
+  handlers:
+    - import_tasks: ../handlers/main.yml
